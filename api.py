@@ -10,9 +10,7 @@ from starlette import status
 
 from src.logger import get_logger
 from src.prodscrape.api.amazon_api import AmazonRouter
-# from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-# scheduler = AsyncIOScheduler(timezone="UTC")
+from src.prodscrape.api.auth import AuthRouter
 
 log = get_logger("main")
 
@@ -20,7 +18,6 @@ log = get_logger("main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
-    # scheduler.start()
     yield
     await disconnect_db()
 
@@ -53,6 +50,12 @@ app.include_router(
     AmazonRouter(pool_provider=postgres_connection_pool),
     prefix="/api/v1",
     tags=["amazon"],
+)
+
+app.include_router(
+    AuthRouter(pool_provider=postgres_connection_pool),
+    prefix="/api",
+    tags=["auth"],
 )
 
 if __name__ == "__main__":

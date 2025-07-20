@@ -13,7 +13,7 @@ log = get_logger("scheduler")
 async def get_prodoct_prices():
     try:
         await connect_db()
-        pool = get_pool(max_clients=3)
+        pool = get_pool(max_clients=5)
         client1 = await pool.get_client("firefox")
 
         as1 = AmazonScraper(
@@ -24,6 +24,7 @@ async def get_prodoct_prices():
         async with postgres_connection_pool().acquire() as conn:
             query = """
             SELECT * FROM amazon_products
+            WHERE is_deleted=False
             """
             products = await conn.fetch(query)
 

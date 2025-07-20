@@ -20,7 +20,8 @@ class AmazonScraper(Scraper):
             div = soup.find("div", {"id": "corePriceDisplay_desktop_feature_div"})
             price = div.find("span", {"class": "a-price-whole"})
             self.log.info(f"Successfully fetched price for product with ASIN {asin}")
-            return price
+            return price.text
 
         except Exception as e:
             self.log.error(f"Failed to fetch price for product with ASIN {asin}")
+            self.log.exception(e)

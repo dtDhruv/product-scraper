@@ -17,7 +17,8 @@ async def main():
 
         coros = []
         coros.append(as1.scrape_product_price("B0CCZ1L489"))
-        await asyncio.gather(*coros)
+        resp = await asyncio.gather(*coros)
+        print(resp)
 
     finally:
         stats = await pool.get_pool_stats()

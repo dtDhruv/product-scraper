@@ -8,12 +8,9 @@ from dotenv import load_dotenv
 import os
 from pydantic import BaseModel
 from typing import Optional
-from asyncpg import Pool
 from src.config.db import postgres_connection_pool
 
 load_dotenv(override=True)
-
-pool: Pool = postgres_connection_pool()
 
 
 class Token(BaseModel):
@@ -53,7 +50,7 @@ def get_password_hash(password):
 
 
 async def get_user(username: str):
-    async with pool.acquire() as conn:
+    async with postgres_connection_pool().acquire() as conn:
         query = """
         SELECT username, email, full_name, hashed_password, disabled 
         FROM users 

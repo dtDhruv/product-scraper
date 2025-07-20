@@ -131,7 +131,7 @@ class AmazonProduct(BaseModel):
 
 class AuthRouter(APIRouter):
     def __init__(self, pool_provider: Callable[[], Pool]):
-        super().__init__(prefix="/auth")
+        super().__init__(prefix="")
         self.pool_provider = pool_provider
 
         def get_pool():

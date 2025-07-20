@@ -53,7 +53,7 @@ app.include_router(
 )
 
 app.include_router(
-    AuthRouter(pool_provider=postgres_connection_pool),
+    AuthRouter(),
     prefix="",
 )
 

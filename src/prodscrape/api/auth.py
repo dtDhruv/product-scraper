@@ -161,13 +161,6 @@ class AuthRouter(APIRouter):
             dependencies=[Depends(get_current_active_user_with_pool)],
         )
 
-        self.add_api_route(
-            "/users/me/items",
-            self.read_own_items,
-            methods=["GET"],
-            dependencies=[Depends(get_current_active_user_with_pool)],
-        )
-
     async def login_for_access_token(
         self, form_data: OAuth2PasswordRequestForm = Depends()
     ):
@@ -193,19 +186,3 @@ class AuthRouter(APIRouter):
         self, current_user: User = Depends(get_current_active_user)
     ):
         return current_user
-
-    async def read_own_items(
-        self, current_user: User = Depends(get_current_active_user)
-    ):
-        pool = self.pool_provider()
-
-        async with pool.acquire() as conn:
-            query = """
-            SELECT * FROM user_items 
-            WHERE username = $1
-            ORDER BY created_at DESC
-            """
-            rows = await conn.fetch(query, current_user.username)
-
-            items = [dict(row) for row in rows]
-            return {"items": items, "user": current_user.username}

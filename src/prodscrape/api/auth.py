@@ -7,10 +7,13 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 import os
 from pydantic import BaseModel
-from typing import Optional, Callable
+from typing import Optional
 from asyncpg import Pool
+from src.config.db import postgres_connection_pool
 
 load_dotenv(override=True)
+
+pool: Pool = postgres_connection_pool()
 
 
 class Token(BaseModel):
@@ -33,6 +36,10 @@ class UserInDB(User):
     hashed_password: str
 
 
+class AmazonProduct(BaseModel):
+    asin: str
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -45,7 +52,7 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-async def get_user(pool: Pool, username: str):
+async def get_user(username: str):
     async with pool.acquire() as conn:
         query = """
         SELECT username, email, full_name, hashed_password, disabled 
@@ -65,8 +72,8 @@ async def get_user(pool: Pool, username: str):
         return None
 
 
-async def authenticate_user(pool: Pool, username: str, password: str):
-    user = await get_user(pool, username)
+async def authenticate_user(username: str, password: str):
+    user = await get_user(username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -88,10 +95,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    pool: Pool = Depends(lambda: None),
-):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     credential_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -112,7 +116,7 @@ async def get_current_user(
     except JWTError:
         raise credential_exception
 
-    user = await get_user(pool, username=token_data.username)
+    user = await get_user(username=token_data.username)
     if user is None:
         raise credential_exception
 
@@ -125,26 +129,9 @@ async def get_current_active_user(current_user: UserInDB = Depends(get_current_u
     return current_user
 
 
-class AmazonProduct(BaseModel):
-    asin: str
-
-
 class AuthRouter(APIRouter):
-    def __init__(self, pool_provider: Callable[[], Pool]):
+    def __init__(self):
         super().__init__(prefix="")
-        self.pool_provider = pool_provider
-
-        def get_pool():
-            return self.pool_provider()
-
-        async def get_current_user_with_pool(token: str = Depends(oauth2_scheme)):
-            return await get_current_user(token, get_pool())
-
-        async def get_current_active_user_with_pool():
-            current_user = await get_current_user_with_pool()
-            if current_user.disabled:
-                raise HTTPException(status_code=400, detail="Inactive user")
-            return current_user
 
         self.add_api_route(
             "/token",
@@ -158,14 +145,13 @@ class AuthRouter(APIRouter):
             self.read_users_me,
             methods=["GET"],
             response_model=User,
-            dependencies=[Depends(get_current_active_user_with_pool)],
+            dependencies=[Depends(get_current_active_user)],
         )
 
     async def login_for_access_token(
         self, form_data: OAuth2PasswordRequestForm = Depends()
     ):
-        pool = self.pool_provider()
-        user = await authenticate_user(pool, form_data.username, form_data.password)
+        user = await authenticate_user(form_data.username, form_data.password)
 
         if not user:
             raise HTTPException(

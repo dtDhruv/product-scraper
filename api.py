@@ -54,7 +54,7 @@ app.include_router(
 
 app.include_router(
     AuthRouter(pool_provider=postgres_connection_pool),
-    prefix="/",
+    prefix="",
 )
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from typing import Callable
 from asyncpg import Pool
+from src.prodscrape.api.auth import get_current_active_user, User
 
 amazon_router = APIRouter(prefix="/amazon")
 
@@ -22,11 +23,16 @@ class AmazonRouter(APIRouter):
             methods=["POST"],
         )
 
-    async def add_product_to_db(self, request: AmazonProduct):
+    async def add_product_to_db(
+        self,
+        request: AmazonProduct,
+        current_user: User = Depends(get_current_active_user),
+    ):
         if not request.asin:
             return JSONResponse(
                 status_code=400, content={"Error": "Invalid Data Input"}
             )
+
         pool = self.pool_provider()
         async with pool.acquire() as conn:
             query = """
@@ -35,3 +41,8 @@ class AmazonRouter(APIRouter):
             ON CONFLICT (asin) DO NOTHING;
             """
             await conn.execute(query, request.asin)
+
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Product added successfully", "asin": request.asin},
+        )
